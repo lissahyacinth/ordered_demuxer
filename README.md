@@ -41,7 +41,7 @@ Although it requires the consumption of each iterator entirely to make this poss
 
 ## Installation
 ```bash
-python -m pip install ordered_demuxer
+python -m pip install ordered-demuxer
 ```
 
 ## Usage
