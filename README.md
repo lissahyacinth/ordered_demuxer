@@ -14,7 +14,8 @@ cannot be fully held in memory, such as retrieving data online.
 
 ### Example
 With an input such as
-```[
+```
+[
   0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
 ]
 ```
