@@ -14,16 +14,6 @@ class FilterCondition(Generic[T]):
         return self.condition(x)
 
 
-class MiniStop(Exception):
-    item: Any
-    condition: FilterCondition
-
-    def __init__(self, message="", item=None, condition=None):
-        self.item = item
-        self.condition = condition
-        super().__init__(message)
-
-
 @dataclass
 class _iterator(Generic[T]):
     """
@@ -36,6 +26,7 @@ class _iterator(Generic[T]):
     """
     data_source: Iterator[T]
     filter: List[FilterCondition[T]]
+    condition_met: Optional[FilterCondition[T]] = None
     _buffer: Optional[T] = None
 
     def __iter__(self):
@@ -49,7 +40,9 @@ class _iterator(Generic[T]):
         item = self.data_source.__next__()
         for filter in self.filter:
             if filter(item):
-                raise MiniStop(item=item, condition=filter)
+                self.condition_met = filter
+                self._buffer = item
+                raise StopIteration
         return item
 
 
@@ -121,16 +114,14 @@ class OrderedDemuxer(Generic[T]):
         return self
 
     def __next__(self) -> Iterator[T]:
-        try:
-            yield from self._iterator
-        except MiniStop as m:
-            if self.split_after:
-                yield m.item
-                m.item = None
-            self.condition_met = m.condition
-            self._iterator = _iterator(
-                self.data_source,
-                self.filter if self.repeat else [],
-                _buffer=m.item,
-            )
+        for x in self._iterator:
+            yield x
+        if self.split_after and self._iterator._buffer is not None:
+            yield self._iterator._buffer
+        self.condition_met = self._iterator.condition_met
+        self._iterator = _iterator(
+            self.data_source,
+            self.filter if self.repeat else [],
+            _buffer=self._iterator._buffer if not self.split_after else None,
+        )
 
