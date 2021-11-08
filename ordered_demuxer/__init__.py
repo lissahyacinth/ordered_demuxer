@@ -13,7 +13,6 @@ class FilterCondition(Generic[T]):
     def __call__(self, x: Any) -> bool:
         return self.condition(x)
 
-
 @dataclass
 class _iterator(Generic[T]):
     """
@@ -26,23 +25,36 @@ class _iterator(Generic[T]):
     """
     data_source: Iterator[T]
     filter: List[FilterCondition[T]]
+    split_after: bool
     condition_met: Optional[FilterCondition[T]] = None
     _buffer: Optional[T] = None
+    _is_finished: bool = False
 
     def __iter__(self):
         return self
 
     def __next__(self) -> T:
+        if self.condition_met is not None:
+            raise StopIteration
+
         if self._buffer is not None:
             item = self._buffer
             self._buffer = None
             return item
-        item = self.data_source.__next__()
+        try:
+            item = self.data_source.__next__()
+        except StopIteration:
+            self._is_finished = True
+            raise StopIteration
+        
         for filter in self.filter:
             if filter(item):
                 self.condition_met = filter
-                self._buffer = item
-                raise StopIteration
+                if self.split_after:
+                    return item
+                else:
+                    self._buffer = item                    
+                    raise StopIteration
         return item
 
 
@@ -107,21 +119,24 @@ class OrderedDemuxer(Generic[T]):
         self.repeat = repeat
         self.split_after = split_after
         self._buffer = None
-        self._iterator = _iterator(self.data_source, self.filter)
+        self._iterator = _iterator(self.data_source, self.filter, self.split_after)
         self.condition_met : Optional[FilterCondition] = None
 
     def __iter__(self):
         return self
 
     def __next__(self) -> Iterator[T]:
-        for x in self._iterator:
-            yield x
-        if self.split_after and self._iterator._buffer is not None:
-            yield self._iterator._buffer
-        self.condition_met = self._iterator.condition_met
-        self._iterator = _iterator(
-            self.data_source,
-            self.filter if self.repeat else [],
-            _buffer=self._iterator._buffer if not self.split_after else None,
-        )
+        if self._iterator._is_finished:
+            raise StopIteration
+        elif self._iterator.condition_met is None:
+            return iter(self._iterator)
+        else:
+            self.condition_met = self._iterator.condition_met
+            self._iterator = _iterator(
+                self.data_source,
+                self.filter if self.repeat else [],
+                self.split_after,
+                _buffer=self._iterator._buffer if not self.split_after else None,
+            )
+            return self._iterator
 
