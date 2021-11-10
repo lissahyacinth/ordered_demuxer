@@ -11,7 +11,8 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/lissahyacinth/ordered_demuxer",
     license="MIT",
-    version = "0.0.3",
+    version = "0.1.0",
     packages=["ordered_demuxer"],
+    package_data={'ordered_demuxer': 'py.typed'},
     extras_require={'dev': ['pytest']}
 )
