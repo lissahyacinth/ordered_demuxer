@@ -13,6 +13,6 @@ setup(
     license="MIT",
     version = "0.1.0",
     packages=["ordered_demuxer"],
-    package_data={'ordered_demuxer': 'py.typed'},
+    package_data={'ordered_demuxer': ['py.typed']},
     extras_require={'dev': ['pytest']}
 )
